@@ -70,7 +70,8 @@ function Comissoes() {
   const totalParceiros = dados?.porParceiro?.reduce((s, i) => s + i.valorComissao, 0) || 0
 
   return (
-    <Container className="py-4 mt-5">
+    <div style={{ paddingTop: '100px', minHeight: '100vh', backgroundColor: '#1a1a1a', paddingBottom: '50px' }}>
+    <Container>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 style={{ color: '#c9a227' }}>💰 Comissões</h2>
         <Form.Select
@@ -289,6 +290,7 @@ function Comissoes() {
         </Tab>
       </Tabs>
     </Container>
+    </div>
   )
 }
 

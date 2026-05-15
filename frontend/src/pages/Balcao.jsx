@@ -113,7 +113,8 @@ function Balcao() {
   const servicoSelecionado = servicos.find(s => s.id === Number(agendamento.servicoId))
 
   return (
-    <Container className="py-4 mt-5">
+    <div style={{ paddingTop: '100px', minHeight: '100vh', backgroundColor: '#1a1a1a', paddingBottom: '50px' }}>
+    <Container>
       <h2 className="mb-4" style={{ color: '#c9a227' }}>✂ Agendamento Balcão</h2>
 
       {alert.message && (
@@ -352,6 +353,7 @@ function Balcao() {
         </Card>
       )}
     </Container>
+    </div>
   )
 }
 
