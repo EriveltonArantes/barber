@@ -2,65 +2,29 @@ import { useState, useEffect, useMemo } from 'react'
 import { Container, Row, Col, Card, Button, Table, Badge, Form } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 
-// Dados simulados de agendamentos completos
-const gerarDadosCompleto = () => {
-  const agendamentos = []
-  const servicos = [
-    { nome: 'Corte Masculino', preco: 50 },
-    { nome: 'Barba Modelada', preco: 40 },
-    { nome: 'Corte + Barba', preco: 80 },
-    { nome: 'Hidratação', preco: 60 },
-    { nome: 'Massagem Relaxante', preco: 70 },
-  ]
-  const clientes = ['João Silva', 'Pedro Santos', 'Carlos Oliveira', 'Lucas Mendes', 'Paulo Costa', 'Roberto Alves', 'Maria Souza', 'Ana Paula']
-  const funcionarios = [
-    { id: 1, nome: 'Marcos Souza' },
-    { id: 2, nome: 'Ricardo Alves' },
-    { id: 3, nome: 'João Pedro' },
-  ]
-
-  const hoje = new Date()
-  
-  // Gerar dados dos últimos 30 dias
-  for (let dia = 0; dia < 30; dia++) {
-    const data = new Date(hoje)
-    data.setDate(hoje.getDate() - dia)
-    const dataStr = data.toISOString().split('T')[0]
-    
-    // Skip domingos
-    if (data.getDay() === 0) continue
-    
-    // 5-15 agendamentos por dia
-    const numAgendamentos = Math.floor(Math.random() * 11) + 5
-    
-    for (let i = 0; i < numAgendamentos; i++) {
-      const servico = servicos[Math.floor(Math.random() * servicos.length)]
-      const cliente = clientes[Math.floor(Math.random() * clientes.length)]
-      const funcionario = funcionarios[Math.floor(Math.random() * funcionarios.length)]
-      const hora = `${Math.floor(Math.random() * 9) + 9}:${Math.random() > 0.5 ? '00' : '30'}`
-      
-      agendamentos.push({
-        id: agendamentos.length + 1,
-        data: dataStr,
-        hora: hora,
-        cliente: cliente,
-        servico: servico.nome,
-        preco: servico.preco,
-        funcionario: funcionario.nome,
-        status: 'concluido'
-      })
-    }
-  }
-  
-  return agendamentos.sort((a, b) => b.data.localeCompare(a.data))
-}
-
-const todosAgendamentos = gerarDadosCompleto()
-
 function Dashboard() {
   const { user, isAdmin } = useAuth()
   const [periodo, setPeriodo] = useState('30')
-  const [dados, setDados] = useState(todosAgendamentos)
+  const [dados, setDados] = useState([])
+
+  useEffect(() => {
+    const token = localStorage.getItem('barber_token')
+    fetch('/api/agendamentos', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setDados(data.map(ag => ({
+        id: ag.id,
+        data: ag.data,
+        hora: ag.hora ? ag.hora.substring(0, 5) : ag.hora,
+        cliente: ag.clienteNome,
+        servico: ag.servicoNome,
+        preco: ag.servicoPreco || 0,
+        funcionario: ag.funcionarioNome,
+        status: ag.status
+      }))))
+      .catch(() => {})
+  }, [])
 
   // Filtrar dados por período
   const dadosFiltrados = useMemo(() => {

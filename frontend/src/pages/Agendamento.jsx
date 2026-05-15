@@ -2,15 +2,6 @@ import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 
-// Dados simulados de serviços
-const servicos = [
-  { id: 1, nome: 'Corte Masculino', duracao: 30, preco: 50 },
-  { id: 2, nome: 'Barba Modelada', duracao: 30, preco: 40 },
-  { id: 3, nome: 'Corte + Barba', duracao: 60, preco: 80 },
-  { id: 4, nome: 'Tratamento Capilar', duracao: 45, preco: 60 },
-  { id: 5, nome: 'Massagem Relaxante', duracao: 40, preco: 70 },
-]
-
 // Horários disponíveis (9h às 18h, a cada 30min)
 const gerarHorarios = () => {
   const horarios = []
@@ -23,33 +14,42 @@ const gerarHorarios = () => {
 
 const horariosDisponiveis = gerarHorarios()
 
-// Dados simulados de agendamentos (em produção viria do backend)
-let agendamentos = [
-  { id: 1, clienteId: 1, clienteNome: 'João Silva', clienteTelefone: '(11) 99999-1111', funcionarioId: 1, funcionarioNome: 'Marcos Souza', servico: 'Corte Masculino', data: '2024-01-15', hora: '10:00' },
-  { id: 2, clienteId: 1, clienteNome: 'João Silva', clienteTelefone: '(11) 99999-1111', funcionarioId: 1, funcionarioNome: 'Marcos Souza', servico: 'Barba Modelada', data: '2024-01-15', hora: '14:00' },
-]
-
 function Agendamento() {
-  const { user, isCliente, funcionariosCadastrados } = useAuth()
+  const { user, funcionarios, fetchFuncionarios } = useAuth()
+  const [servicos, setServicos] = useState([])
   const [servicoSelecionado, setServicoSelecionado] = useState('')
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState('')
   const [dataSelecionada, setDataSelecionada] = useState('')
   const [horaSelecionada, setHoraSelecionada] = useState('')
   const [horariosLivres, setHorariosLivres] = useState([])
   const [alert, setAlert] = useState({ type: '', message: '' })
+  const [loading, setLoading] = useState(false)
 
-  // Verifica quais horários estão disponíveis para o funcionário na data
   useEffect(() => {
-    if (funcionarioSelecionado && dataSelecionada) {
-      const agendamentosFuncionario = agendamentos.filter(
-        a => a.funcionarioId === parseInt(funcionarioSelecionado) && a.data === dataSelecionada
-      )
-      
-      const horariosOcupados = agendamentosFuncionario.map(a => a.hora)
-      const livres = horariosDisponiveis.filter(h => !horariosOcupados.includes(h))
-      setHorariosLivres(livres)
-      setHoraSelecionada('')
-    }
+    fetchFuncionarios()
+    fetch('/api/servicos/ativos')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setServicos(data))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!funcionarioSelecionado || !dataSelecionada) return
+
+    const token = localStorage.getItem('barber_token')
+    fetch(`/api/agendamentos/funcionario/${funcionarioSelecionado}/data?data=${dataSelecionada}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(ocupados => {
+        const horariosOcupados = ocupados.map(a => a.hora.substring(0, 5))
+        setHorariosLivres(horariosDisponiveis.filter(h => !horariosOcupados.includes(h)))
+        setHoraSelecionada('')
+      })
+      .catch(() => {
+        setHorariosLivres(horariosDisponiveis)
+        setHoraSelecionada('')
+      })
   }, [funcionarioSelecionado, dataSelecionada])
 
   // Gerar datas dos próximos 30 dias
@@ -69,39 +69,47 @@ function Agendamento() {
 
   const datasDisponiveis = gerarDatas()
 
-  const handleAgendar = (e) => {
+  const handleAgendar = async (e) => {
     e.preventDefault()
-    
+
     if (!user) {
       setAlert({ type: 'danger', message: 'Você precisa estar logado para agendar' })
       return
     }
 
-    const servico = servicos.find(s => s.id === parseInt(servicoSelecionado))
-    const funcionario = funcionariosCadastrados.find(f => f.id === parseInt(funcionarioSelecionado))
+    setLoading(true)
+    const token = localStorage.getItem('barber_token')
 
-    const novoAgendamento = {
-      id: Date.now(),
-      clienteId: user.id,
-      clienteNome: user.nome,
-      clienteTelefone: user.telefone || '(11) 99999-9999',
-      funcionarioId: parseInt(funcionarioSelecionado),
-      funcionarioNome: funcionario?.nome || 'Profissional',
-      servico: servico.nome,
-      data: dataSelecionada,
-      hora: horaSelecionada,
-      status: 'confirmado'
+    try {
+      const response = await fetch('/api/agendamentos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          clienteId: user.id,
+          funcionarioId: parseInt(funcionarioSelecionado),
+          servicoId: parseInt(servicoSelecionado),
+          data: dataSelecionada,
+          hora: horaSelecionada,
+          status: 'CONFIRMADO'
+        })
+      })
+
+      if (!response.ok) throw new Error()
+
+      setAlert({ type: 'success', message: 'Agendamento realizado com sucesso!' })
+      setServicoSelecionado('')
+      setFuncionarioSelecionado('')
+      setDataSelecionada('')
+      setHoraSelecionada('')
+      setHorariosLivres([])
+    } catch {
+      setAlert({ type: 'danger', message: 'Erro ao realizar agendamento. Tente novamente.' })
+    } finally {
+      setLoading(false)
     }
-
-    agendamentos.push(novoAgendamento)
-    setAlert({ type: 'success', message: 'Agendamento realizado com sucesso!' })
-    
-    // Reset form
-    setServicoSelecionado('')
-    setFuncionarioSelecionado('')
-    setDataSelecionada('')
-    setHoraSelecionada('')
-    setHorariosLivres([])
   }
 
   const inputStyle = {
@@ -200,7 +208,7 @@ function Agendamento() {
                       required
                     >
                       <option value="">Selecione um profissional</option>
-                      {funcionariosCadastrados.map(f => (
+                      {funcionarios.map(f => (
                         <option key={f.id} value={f.id}>
                           {f.nome} {f.telefone && `- ${f.telefone}`}
                         </option>
@@ -275,7 +283,7 @@ function Agendamento() {
                         <strong>Serviço:</strong> {servicos.find(s => s.id === parseInt(servicoSelecionado))?.nome}
                       </p>
                       <p style={{ color: '#f5f5f5', marginBottom: '0.2rem' }}>
-                        <strong>Profissional:</strong> {funcionariosCadastrados.find(f => f.id === parseInt(funcionarioSelecionado))?.nome}
+                        <strong>Profissional:</strong> {funcionarios.find(f => f.id === parseInt(funcionarioSelecionado))?.nome}
                       </p>
                       <p style={{ color: '#f5f5f5', marginBottom: '0.2rem' }}>
                         <strong>Data:</strong> {new Date(dataSelecionada).toLocaleDateString('pt-BR')}
@@ -293,7 +301,7 @@ function Agendamento() {
                   type="submit" 
                   className="btn-gold"
                   style={{ padding: '0.8rem 3rem' }}
-                  disabled={!servicoSelecionado || !funcionarioSelecionado || !dataSelecionada || !horaSelecionada || horariosLivres.length === 0}
+                  disabled={loading || !servicoSelecionado || !funcionarioSelecionado || !dataSelecionada || !horaSelecionada || horariosLivres.length === 0}
                 >
                   Confirmar Agendamento
                 </Button>
