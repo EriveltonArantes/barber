@@ -41,6 +41,8 @@ function Navbar() {
               <>
                 <Nav.Link as={Link} to="/" onClick={close}>Início</Nav.Link>
                 <Nav.Link as={Link} to="/meus-agendamentos" onClick={close}>Minha Agenda</Nav.Link>
+                <Nav.Link as={Link} to="/balcao" onClick={close}>Balcão</Nav.Link>
+                <Nav.Link as={Link} to="/cliente" onClick={close}>Clientes</Nav.Link>
               </>
             ) : isRecepcionista() ? (
               <>

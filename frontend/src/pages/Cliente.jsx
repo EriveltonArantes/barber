@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Alert, Tab, Tabs } from 'react-bootstrap'
+import { useAuth } from '../context/AuthContext'
 
 const removerMascara = (str) => str.replace(/[.\-() ]/g, '').toLowerCase()
 const token = () => localStorage.getItem('barber_token')
 const authHeaders = () => ({ 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' })
 
 function Cliente() {
+  const { isAdmin } = useAuth()
   const [clientes, setClientes] = useState([])
   const [formData, setFormData] = useState({ nome: '', email: '', senha: '', telefone: '', cpf: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '' })
   const [searchTerm, setSearchTerm] = useState('')
@@ -118,7 +120,9 @@ function Cliente() {
                         <td>{c.cpf}</td>
                         <td>{c.cidade}</td>
                         <td>
-                          <Button variant="outline-danger" size="sm" onClick={() => handleDelete(c.id, c.nome)}>Excluir</Button>
+                          {isAdmin() && (
+                            <Button variant="outline-danger" size="sm" onClick={() => handleDelete(c.id, c.nome)}>Excluir</Button>
+                          )}
                         </td>
                       </tr>
                     )) : (
