@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Container, Row, Col, Card, Alert, Badge, Button, Modal } from 'react-bootstrap'
+import { Container, Row, Col, Card, Alert, Badge, Button, Modal, Form, InputGroup } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 
 function MeusAgendamentos() {
@@ -8,6 +8,8 @@ function MeusAgendamentos() {
   const [agendamentos, setAgendamentos] = useState([])
   const [mesAtual, setMesAtual] = useState(new Date())
   const [showModal, setShowModal] = useState(false)
+  const [busca, setBusca] = useState('')
+  const [filtroPor, setFiltroPor] = useState('cliente') // 'cliente' | 'funcionario'
 
   const carregarAgendamentos = useCallback(async () => {
     const token = localStorage.getItem('barber_token')
@@ -44,7 +46,7 @@ function MeusAgendamentos() {
   }, [carregarAgendamentos])
 
   const cancelarAgendamento = async (id) => {
-    if (!window.confirm('Deseja cancelar este agendamento?')) return
+    if (!window.confirm('Deseja excluir/cancelar este agendamento?')) return
     const token = localStorage.getItem('barber_token')
     try {
       const r = await fetch(`/api/agendamentos/${id}`, {
@@ -54,6 +56,16 @@ function MeusAgendamentos() {
       if (r.ok) carregarAgendamentos()
     } catch { /* ignore */ }
   }
+
+  const agendamentosFiltrados = useMemo(() => {
+    if (!busca.trim()) return []
+    const q = busca.toLowerCase()
+    return agendamentos.filter(a =>
+      filtroPor === 'cliente'
+        ? (a.clienteNome || '').toLowerCase().includes(q)
+        : (a.funcionarioNome || '').toLowerCase().includes(q)
+    ).sort((a, b) => a.data.localeCompare(b.data) || (a.hora || '').localeCompare(b.hora || ''))
+  }, [busca, filtroPor, agendamentos])
 
   const agendamentosDoDia = useMemo(() => {
     return agendamentos
@@ -122,6 +134,70 @@ function MeusAgendamentos() {
             </p>
           </Col>
         </Row>
+
+        {/* Busca admin */}
+        {isAdmin() && (
+          <Row className="mb-4">
+            <Col>
+              <Card style={{ background: '#1e1e1e', border: '1px solid #444', borderRadius: '10px' }}>
+                <Card.Body className="py-3">
+                  <InputGroup>
+                    <Form.Select
+                      value={filtroPor}
+                      onChange={e => setFiltroPor(e.target.value)}
+                      style={{ maxWidth: '160px', background: '#2d2d2d', color: '#f5f5f5', border: '1px solid #555' }}
+                    >
+                      <option value="cliente">Por cliente</option>
+                      <option value="funcionario">Por funcionário</option>
+                    </Form.Select>
+                    <Form.Control
+                      placeholder={filtroPor === 'cliente' ? 'Buscar por nome do cliente...' : 'Buscar por funcionário...'}
+                      value={busca}
+                      onChange={e => setBusca(e.target.value)}
+                      style={{ background: '#2d2d2d', color: '#f5f5f5', border: '1px solid #555' }}
+                    />
+                    {busca && (
+                      <Button variant="outline-secondary" onClick={() => setBusca('')}>✕</Button>
+                    )}
+                  </InputGroup>
+                </Card.Body>
+              </Card>
+
+              {busca.trim() && (
+                <Card className="mt-2" style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '10px' }}>
+                  <Card.Body style={{ padding: '1rem' }}>
+                    <p style={{ color: '#a0a0a0', marginBottom: '0.8rem', fontSize: '0.85rem' }}>
+                      {agendamentosFiltrados.length} resultado(s) para "{busca}"
+                    </p>
+                    {agendamentosFiltrados.length === 0 ? (
+                      <p style={{ color: '#555', textAlign: 'center', padding: '1rem 0' }}>Nenhum agendamento encontrado.</p>
+                    ) : agendamentosFiltrados.map(ag => {
+                      const { bg, label } = getStatusBadge(ag.status)
+                      return (
+                        <div key={ag.id} style={{ display: 'flex', gap: '1rem', backgroundColor: '#2d2d2d', borderRadius: '8px', padding: '0.9rem 1rem', marginBottom: '0.5rem', border: '1px solid #444', alignItems: 'center' }}>
+                          <div style={{ minWidth: '80px', textAlign: 'center' }}>
+                            <div style={{ color: '#c9a227', fontWeight: 'bold', fontSize: '0.9rem' }}>{ag.hora}</div>
+                            <div style={{ color: '#888', fontSize: '0.72rem' }}>{new Date(ag.data + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ color: '#f5f5f5', fontWeight: '500' }}>{ag.clienteNome}</div>
+                            <div style={{ color: '#a0a0a0', fontSize: '0.8rem' }}>✂ {ag.servico} · {ag.funcionarioNome}</div>
+                          </div>
+                          <div className="d-flex align-items-center gap-2">
+                            <Badge bg={bg}>{label}</Badge>
+                            <span style={{ color: '#28a745', fontWeight: 'bold', fontSize: '0.9rem' }}>R$ {ag.preco?.toFixed(2)}</span>
+                            <Button size="sm" variant="outline-danger" style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                              onClick={() => cancelarAgendamento(ag.id)}>Excluir</Button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </Card.Body>
+                </Card>
+              )}
+            </Col>
+          </Row>
+        )}
 
         <Row>
           {/* Calendário */}
@@ -257,7 +333,10 @@ function MeusAgendamentos() {
                               </div>
                               <div className="d-flex align-items-center gap-2">
                                 <Badge bg={bg}>{label}</Badge>
-                                {ag.status !== 'CANCELADO' && ag.status !== 'CONCLUIDO' && (
+                                {isAdmin() ? (
+                                  <Button size="sm" variant="outline-danger" style={{ padding: '1px 8px', fontSize: '0.75rem', lineHeight: '1.5' }}
+                                    onClick={() => cancelarAgendamento(ag.id)}>Excluir</Button>
+                                ) : ag.status !== 'CANCELADO' && ag.status !== 'CONCLUIDO' && (
                                   <Button size="sm" variant="outline-danger" style={{ padding: '1px 7px', fontSize: '0.75rem', lineHeight: '1.5' }}
                                     onClick={() => cancelarAgendamento(ag.id)}>✕</Button>
                                 )}
