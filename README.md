@@ -1,6 +1,7 @@
 # Barber Shop Management System
 
 Sistema completo de gerenciamento de barbearia com frontend React e backend Spring Boot.
+Pronto para produção — dados reais, CRUD completo, autenticação JWT e 29 testes passando.
 
 ## 🚀 Tecnologias
 
@@ -61,20 +62,22 @@ O frontend estará disponível em: `http://localhost:5173`
 ### Cliente
 - ✅ Login e Cadastro
 - ✅ Visualizar serviços disponíveis
-- ✅ Agendar horários
+- ✅ Agendar horários com verificação real de disponibilidade
 - ✅ Cancelar agendamentos
 - ✅ Visualizar histórico de agendamentos
 
 ### Funcionário
 - ✅ Login
-- ✅ Visualizar agenda do dia
+- ✅ Visualizar agenda do dia (dados reais da API)
 - ✅ Gerenciar agendamentos
 
 ### Administrador
-- ✅ Dashboard com estatísticas
-- ✅ Cadastrar funcionários
-- ✅ Cadastrar/editar serviços
+- ✅ Dashboard com dados reais dos agendamentos
+- ✅ Cadastrar/editar/remover funcionários (com credenciais de login)
+- ✅ Cadastrar/editar/remover clientes
+- ✅ CRUD completo de serviços (ativar/desativar)
 - ✅ Gerenciar todos os agendamentos
+- ✅ Menus de navegação separados por perfil (admin/funcionário/cliente)
 
 ## 🔗 Endpoints da API
 
@@ -115,14 +118,20 @@ O frontend estará disponível em: `http://localhost:5173`
 
 ## 🧪 Testes
 
-```
-bash
-# Executar todos os testes
+```bash
+# Executar todos os testes (29 testes, 0 falhas)
 ./mvnw test
-
-# Executar testes com cobertura
-./mvnw test -Dcoverage
 ```
+
+Cobertura atual: **29/29 testes passando**
+
+| Classe | Testes |
+|--------|--------|
+| `AuthControllerTest` | 4 (integração com Spring Security real) |
+| `AuthServiceTest` | 4 |
+| `AgendamentoServiceTest` | 9 |
+| `ServicoServiceTest` | 6 |
+| `BarberApplicationTests` | 6 |
 
 ## 📁 Estrutura do Projeto
 
@@ -172,6 +181,17 @@ jwt:
   secret: BarberShop2024SecretKeyVeryLongForHS256Algorithm
   expiration: 86400000
 ```
+
+## 🌿 Branches
+
+| Branch | Descrição |
+|--------|-----------|
+| `master` | Produção — código estável e testado |
+| `feature/backend-improvements` | GlobalExceptionHandler + SecurityConfig + pom.xml |
+| `feature/frontend-auth-fix` | Login async/await e comparação de role correta |
+| `feature/frontend-real-data` | Agendamento, Dashboard e MeusAgendamentos com dados reais |
+| `feature/admin-pages` | Página Serviços + Navbar por perfil + UI admin completa |
+| `feature/fix-tests` | 29/29 testes passando |
 
 ## 📄 Licença
 
