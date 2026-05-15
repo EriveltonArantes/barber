@@ -10,6 +10,8 @@ import Agendamento from './pages/Agendamento'
 import MeusAgendamentos from './pages/MeusAgendamentos'
 import Dashboard from './pages/Dashboard'
 import Servicos from './pages/Servicos'
+import Balcao from './pages/Balcao'
+import Comissoes from './pages/Comissoes'
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
           <Route path="/cliente" element={<ProtectedRoute><Cliente /></ProtectedRoute>} />
           <Route path="/cadastro-funcionario" element={<ProtectedRoute><CadastroFuncionario /></ProtectedRoute>} />
           <Route path="/servicos" element={<ProtectedRoute><Servicos /></ProtectedRoute>} />
+          <Route path="/balcao" element={<ProtectedRoute><Balcao /></ProtectedRoute>} />
+          <Route path="/comissoes" element={<ProtectedRoute><Comissoes /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>

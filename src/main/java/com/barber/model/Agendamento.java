@@ -1,5 +1,6 @@
 package com.barber.model;
 
+import com.barber.model.Parceiro;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -43,4 +44,10 @@ public class Agendamento {
 
     @Column(nullable = false)
     private boolean reminderSent = false;
+
+    @ManyToOne
+    @JoinColumn(name = "parceiro_id")
+    private Parceiro parceiro;
+
+    private String codigoIndicacao;
 }

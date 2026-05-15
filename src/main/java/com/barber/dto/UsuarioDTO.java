@@ -16,4 +16,5 @@ public class UsuarioDTO {
     private String cidade;
     private String estado;
     private String cep;
+    private Double comissaoPercentual;
 }

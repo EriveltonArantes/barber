@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -41,5 +42,16 @@ public class UsuarioController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         usuarioService.delete(id);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/clientes/buscar")
+    public ResponseEntity<List<UsuarioDTO>> buscarClientes(@RequestParam String q) {
+        return ResponseEntity.ok(usuarioService.buscarClientes(q));
+    }
+
+    @PostMapping("/cliente-rapido")
+    public ResponseEntity<UsuarioDTO> clienteRapido(@RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(usuarioService.clienteRapido(
+            body.get("nome"), body.get("telefone"), body.get("email")));
     }
 }

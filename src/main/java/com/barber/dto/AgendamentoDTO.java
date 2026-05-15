@@ -21,4 +21,7 @@ public class AgendamentoDTO {
     private LocalTime hora;
     private String status;
     private String observacoes;
+    private Long parceiroId;
+    private String parceiroNome;
+    private String codigoIndicacao;
 }

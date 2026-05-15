@@ -5,6 +5,7 @@ import com.barber.model.Agendamento;
 import com.barber.model.Servico;
 import com.barber.model.Usuario;
 import com.barber.repository.AgendamentoRepository;
+import com.barber.repository.ParceiroRepository;
 import com.barber.repository.ServicoRepository;
 import com.barber.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,9 @@ class AgendamentoServiceTest {
 
     @Mock
     private ServicoRepository servicoRepository;
+
+    @Mock
+    private ParceiroRepository parceiroRepository;
 
     @Mock
     private EmailService emailService;

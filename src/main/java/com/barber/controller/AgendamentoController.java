@@ -1,6 +1,7 @@
 package com.barber.controller;
 
 import com.barber.dto.AgendamentoDTO;
+import com.barber.dto.ComissaoDTO;
 import com.barber.dto.StatsDTO;
 import com.barber.service.AgendamentoService;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,11 @@ public class AgendamentoController {
     @GetMapping("/stats")
     public ResponseEntity<StatsDTO> getStats(@RequestParam(defaultValue = "30") int diasAtras) {
         return ResponseEntity.ok(agendamentoService.getStats(diasAtras));
+    }
+
+    @GetMapping("/comissoes")
+    public ResponseEntity<ComissaoDTO> getComissoes(@RequestParam(defaultValue = "30") int diasAtras) {
+        return ResponseEntity.ok(agendamentoService.getComissoes(diasAtras));
     }
 
     @GetMapping("/cliente/{clienteId}")

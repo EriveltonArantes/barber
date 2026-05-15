@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -57,6 +58,7 @@ public class UsuarioService {
         usuario.setCidade(dto.getCidade());
         usuario.setEstado(dto.getEstado());
         usuario.setCep(dto.getCep());
+        usuario.setComissaoPercentual(dto.getComissaoPercentual());
 
         usuario = usuarioRepository.save(usuario);
         return toDTO(usuario);
@@ -64,6 +66,25 @@ public class UsuarioService {
 
     public void delete(Long id) {
         usuarioRepository.deleteById(id);
+    }
+
+    public List<UsuarioDTO> buscarClientes(String q) {
+        return usuarioRepository.buscarClientes(q).stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public UsuarioDTO clienteRapido(String nome, String telefone, String email) {
+        String emailFinal = (email != null && !email.isBlank()) ? email
+            : "cliente_" + UUID.randomUUID().toString().substring(0, 8) + "@balcao.local";
+        if (usuarioRepository.existsByEmail(emailFinal)) {
+            return toDTO(usuarioRepository.findByEmail(emailFinal).get());
+        }
+        Usuario u = new Usuario();
+        u.setNome(nome);
+        u.setTelefone(telefone);
+        u.setEmail(emailFinal);
+        u.setSenha(passwordEncoder.encode(UUID.randomUUID().toString()));
+        u.setRole("CLIENTE");
+        return toDTO(usuarioRepository.save(u));
     }
 
     private UsuarioDTO toDTO(Usuario usuario) {
@@ -79,6 +100,7 @@ public class UsuarioService {
         dto.setCidade(usuario.getCidade());
         dto.setEstado(usuario.getEstado());
         dto.setCep(usuario.getCep());
+        dto.setComissaoPercentual(usuario.getComissaoPercentual());
         return dto;
     }
 }

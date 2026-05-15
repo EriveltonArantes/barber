@@ -7,7 +7,7 @@ const authHeaders = () => ({ 'Authorization': `Bearer ${token()}`, 'Content-Type
 
 function CadastroFuncionario() {
   const [funcionarios, setFuncionarios] = useState([])
-  const [formData, setFormData] = useState({ nome: '', email: '', senha: '', telefone: '', cpf: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '' })
+  const [formData, setFormData] = useState({ nome: '', email: '', senha: '', telefone: '', cpf: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '', comissaoPercentual: '' })
   const [searchTerm, setSearchTerm] = useState('')
   const [alert, setAlert] = useState({ type: '', message: '' })
   const [loading, setLoading] = useState(false)
@@ -38,7 +38,7 @@ function CadastroFuncionario() {
         body: JSON.stringify({ ...formData, role: 'FUNCIONARIO' })
       })
       if (r.ok) {
-        setFormData({ nome: '', email: '', senha: '', telefone: '', cpf: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '' })
+        setFormData({ nome: '', email: '', senha: '', telefone: '', cpf: '', dataNascimento: '', endereco: '', cidade: '', estado: '', cep: '', comissaoPercentual: '' })
         showAlert('success', 'Funcionário cadastrado com sucesso!')
         carregarFuncionarios()
       } else {
@@ -106,7 +106,7 @@ function CadastroFuncionario() {
                 <Table responsive style={{ color: '#f5f5f5' }}>
                   <thead style={{ backgroundColor: '#2d2d2d', color: '#c9a227' }}>
                     <tr>
-                      <th>Nome</th><th>Email</th><th>Telefone</th><th>CPF</th><th>Status</th><th>Ações</th>
+                      <th>Nome</th><th>Email</th><th>Telefone</th><th>CPF</th><th>% Comissão</th><th>Status</th><th>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -116,13 +116,14 @@ function CadastroFuncionario() {
                         <td>{f.email}</td>
                         <td>{f.telefone}</td>
                         <td>{f.cpf}</td>
+                        <td>{f.comissaoPercentual != null ? <Badge bg="info">{f.comissaoPercentual}%</Badge> : <span style={{ color: '#888' }}>—</span>}</td>
                         <td><Badge bg="success">Ativo</Badge></td>
                         <td>
                           <Button variant="outline-danger" size="sm" onClick={() => handleDelete(f.id, f.nome)}>Remover</Button>
                         </td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="6" style={{ color: '#a0a0a0', textAlign: 'center', padding: '2rem' }}>
+                      <tr><td colSpan="7" style={{ color: '#a0a0a0', textAlign: 'center', padding: '2rem' }}>
                         {searchTerm ? 'Nenhum funcionário encontrado para este filtro.' : 'Nenhum funcionário cadastrado ainda.'}
                       </td></tr>
                     )}
@@ -191,6 +192,16 @@ function CadastroFuncionario() {
                       <Form.Group>
                         <Form.Label style={labelStyle}>Estado</Form.Label>
                         <Form.Control type="text" name="estado" value={formData.estado} onChange={handleChange} style={inputStyle} placeholder="SP" maxLength={2} />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={4} className="mb-3">
+                      <Form.Group>
+                        <Form.Label style={labelStyle}>% Comissão por serviço</Form.Label>
+                        <Form.Control type="number" name="comissaoPercentual" min="0" max="100" step="0.5"
+                          value={formData.comissaoPercentual} onChange={handleChange} style={inputStyle} placeholder="Ex: 30" />
+                        <Form.Text style={{ color: '#888' }}>Deixe em branco para não calcular comissão</Form.Text>
                       </Form.Group>
                     </Col>
                   </Row>

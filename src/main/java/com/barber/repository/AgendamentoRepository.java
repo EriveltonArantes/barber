@@ -55,4 +55,15 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
            "WHERE a.data BETWEEN :inicio AND :fim AND a.status <> 'CANCELADO' " +
            "GROUP BY a.data ORDER BY a.data ASC")
     List<Object[]> faturamentoPorDia(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT a.funcionario.id, a.funcionario.nome, COUNT(a), SUM(a.servico.preco), a.funcionario.comissaoPercentual " +
+           "FROM Agendamento a WHERE a.data BETWEEN :inicio AND :fim AND a.status = 'CONCLUIDO' " +
+           "GROUP BY a.funcionario.id, a.funcionario.nome, a.funcionario.comissaoPercentual ORDER BY COUNT(a) DESC")
+    List<Object[]> comissoesPorFuncionario(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    @Query("SELECT a.parceiro.id, a.parceiro.nome, a.parceiro.codigo, COUNT(a), SUM(a.servico.preco), a.parceiro.percentualComissao " +
+           "FROM Agendamento a WHERE a.parceiro IS NOT NULL AND a.data BETWEEN :inicio AND :fim " +
+           "AND a.status = 'CONCLUIDO' " +
+           "GROUP BY a.parceiro.id, a.parceiro.nome, a.parceiro.codigo, a.parceiro.percentualComissao ORDER BY COUNT(a) DESC")
+    List<Object[]> comissoesPorParceiro(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 }

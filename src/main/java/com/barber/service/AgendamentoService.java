@@ -1,11 +1,14 @@
 package com.barber.service;
 
 import com.barber.dto.AgendamentoDTO;
+import com.barber.dto.ComissaoDTO;
 import com.barber.dto.StatsDTO;
 import com.barber.model.Agendamento;
+import com.barber.model.Parceiro;
 import com.barber.model.Servico;
 import com.barber.model.Usuario;
 import com.barber.repository.AgendamentoRepository;
+import com.barber.repository.ParceiroRepository;
 import com.barber.repository.ServicoRepository;
 import com.barber.repository.UsuarioRepository;
 import org.springframework.data.domain.Page;
@@ -23,17 +26,20 @@ public class AgendamentoService {
     private final AgendamentoRepository agendamentoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ServicoRepository servicoRepository;
+    private final ParceiroRepository parceiroRepository;
     private final EmailService emailService;
     private final WhatsAppService whatsAppService;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
                               UsuarioRepository usuarioRepository,
                               ServicoRepository servicoRepository,
+                              ParceiroRepository parceiroRepository,
                               EmailService emailService,
                               WhatsAppService whatsAppService) {
         this.agendamentoRepository = agendamentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
+        this.parceiroRepository = parceiroRepository;
         this.emailService = emailService;
         this.whatsAppService = whatsAppService;
     }
@@ -101,6 +107,14 @@ public class AgendamentoService {
         agendamento.setHora(dto.getHora());
         agendamento.setStatus(dto.getStatus() != null ? dto.getStatus() : "PENDENTE");
         agendamento.setObservacoes(dto.getObservacoes());
+        agendamento.setCodigoIndicacao(dto.getCodigoIndicacao());
+
+        if (dto.getCodigoIndicacao() != null && !dto.getCodigoIndicacao().isBlank()) {
+            parceiroRepository.findByCodigo(dto.getCodigoIndicacao().toUpperCase().trim())
+                .ifPresent(agendamento::setParceiro);
+        } else if (dto.getParceiroId() != null) {
+            parceiroRepository.findById(dto.getParceiroId()).ifPresent(agendamento::setParceiro);
+        }
 
         agendamento = agendamentoRepository.save(agendamento);
 
@@ -197,6 +211,40 @@ public class AgendamentoService {
         return stats;
     }
 
+    public ComissaoDTO getComissoes(int diasAtras) {
+        LocalDate fim = LocalDate.now();
+        LocalDate inicio = fim.minusDays(diasAtras);
+
+        ComissaoDTO dto = new ComissaoDTO();
+
+        dto.setPorFuncionario(agendamentoRepository.comissoesPorFuncionario(inicio, fim).stream().map(r -> {
+            ComissaoDTO.ItemFuncionario item = new ComissaoDTO.ItemFuncionario();
+            item.setFuncionarioId(((Number) r[0]).longValue());
+            item.setFuncionarioNome((String) r[1]);
+            item.setQuantidadeServicos(((Number) r[2]).longValue());
+            item.setFaturamentoGerado(((Number) r[3]).doubleValue());
+            Double pct = r[4] != null ? ((Number) r[4]).doubleValue() : 0.0;
+            item.setPercentualComissao(pct);
+            item.setValorComissao(item.getFaturamentoGerado() * pct / 100.0);
+            return item;
+        }).collect(Collectors.toList()));
+
+        dto.setPorParceiro(agendamentoRepository.comissoesPorParceiro(inicio, fim).stream().map(r -> {
+            ComissaoDTO.ItemParceiro item = new ComissaoDTO.ItemParceiro();
+            item.setParceiroId(((Number) r[0]).longValue());
+            item.setParceiroNome((String) r[1]);
+            item.setParceiroCodigo((String) r[2]);
+            item.setIndicacoes(((Number) r[3]).longValue());
+            item.setFaturamentoGerado(((Number) r[4]).doubleValue());
+            Double pct = r[5] != null ? ((Number) r[5]).doubleValue() : 0.0;
+            item.setPercentualComissao(pct);
+            item.setValorComissao(item.getFaturamentoGerado() * pct / 100.0);
+            return item;
+        }).collect(Collectors.toList()));
+
+        return dto;
+    }
+
     private AgendamentoDTO toDTO(Agendamento agendamento) {
         AgendamentoDTO dto = new AgendamentoDTO();
         dto.setId(agendamento.getId());
@@ -213,6 +261,11 @@ public class AgendamentoService {
         dto.setHora(agendamento.getHora());
         dto.setStatus(agendamento.getStatus());
         dto.setObservacoes(agendamento.getObservacoes());
+        dto.setCodigoIndicacao(agendamento.getCodigoIndicacao());
+        if (agendamento.getParceiro() != null) {
+            dto.setParceiroId(agendamento.getParceiro().getId());
+            dto.setParceiroNome(agendamento.getParceiro().getNome());
+        }
         return dto;
     }
 }

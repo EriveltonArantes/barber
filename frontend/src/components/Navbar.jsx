@@ -31,6 +31,8 @@ function Navbar() {
                 <Nav.Link as={Link} to="/cliente" onClick={close}>Clientes</Nav.Link>
                 <Nav.Link as={Link} to="/cadastro-funcionario" onClick={close}>Funcionários</Nav.Link>
                 <Nav.Link as={Link} to="/meus-agendamentos" onClick={close}>Agendamentos</Nav.Link>
+                <Nav.Link as={Link} to="/balcao" onClick={close}>Balcão</Nav.Link>
+                <Nav.Link as={Link} to="/comissoes" onClick={close}>Comissões</Nav.Link>
               </>
             ) : isFuncionario() ? (
               <>
