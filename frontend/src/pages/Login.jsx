@@ -15,14 +15,13 @@ function Login() {
   const { login, registrarCliente } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
-    const result = login(email, password)
+
+    const result = await login(email, password)
     if (result.success) {
-      // Redirecionar baseado no tipo de usuário
-      if (result.role === 'funcionario' || result.role === 'admin') {
+      if (result.role === 'FUNCIONARIO' || result.role === 'ADMIN') {
         navigate('/meus-agendamentos')
       } else {
         navigate('/')
@@ -32,17 +31,17 @@ function Login() {
     }
   }
 
-  const handleCadastro = (e) => {
+  const handleCadastro = async (e) => {
     e.preventDefault()
     setCadastroError('')
     setCadastroSuccess('')
-    
+
     if (password !== confirmPassword) {
       setCadastroError('As senhas não conferem')
       return
     }
-    
-    const result = registrarCliente({ nome, email, senha: password })
+
+    const result = await registrarCliente({ nome, email, senha: password })
     if (result.success) {
       setCadastroSuccess('Cadastro realizado com sucesso!')
       setTimeout(() => navigate('/'), 1500)
@@ -221,14 +220,6 @@ function Login() {
                         >
                           Cadastre-se
                         </Button>
-                      </p>
-                      <p style={{ color: '#a0a0a0', fontSize: '0.75rem', marginTop: '1rem' }}>
-                        Acesso admin:<br/>
-                        <span style={{ color: '#c9a227' }}>admin@barber.com</span> / <span style={{ color: '#c9a227' }}>admin123</span>
-                      </p>
-                      <p style={{ color: '#a0a0a0', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                        Acesso funcionário:<br/>
-                        <span style={{ color: '#c9a227' }}>marcos@barber.com</span> / <span style={{ color: '#c9a227' }}>123456</span>
                       </p>
                     </>
                   ) : (
