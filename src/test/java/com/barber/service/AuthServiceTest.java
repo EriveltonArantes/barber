@@ -16,6 +16,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.barber.model.RefreshToken;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +39,9 @@ class AuthServiceTest {
 
     @Mock
     private AuthenticationManager authenticationManager;
+
+    @Mock
+    private com.barber.service.RefreshTokenService refreshTokenService;
 
     @InjectMocks
     private AuthService authService;
@@ -67,6 +72,14 @@ class AuthServiceTest {
         usuario.setTelefone("(11) 99999-9999");
     }
 
+    private RefreshToken refreshTokenMock() {
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("refresh123");
+        rt.setExpiryDate(Instant.now().plusSeconds(3600));
+        rt.setUsuario(usuario);
+        return rt;
+    }
+
     @Test
     void login_Success() {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
@@ -74,6 +87,7 @@ class AuthServiceTest {
         when(usuarioRepository.findByEmail("test@email.com")).thenReturn(Optional.of(usuario));
         when(jwtUtil.generateToken(anyString(), anyString(), any(), anyString(), anyString()))
                 .thenReturn("token123");
+        when(refreshTokenService.createRefreshToken(any())).thenReturn(refreshTokenMock());
 
         AuthResponse response = authService.login(loginRequest);
 
@@ -99,6 +113,7 @@ class AuthServiceTest {
         when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuario);
         when(jwtUtil.generateToken(anyString(), anyString(), any(), anyString(), anyString()))
                 .thenReturn("token123");
+        when(refreshTokenService.createRefreshToken(any())).thenReturn(refreshTokenMock());
 
         AuthResponse response = authService.registro(registroRequest);
 

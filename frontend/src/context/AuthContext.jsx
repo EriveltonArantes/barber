@@ -1,13 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
 
 const AuthContext = createContext(null)
-
 const API_URL = '/api'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [funcionarios, setFuncionarios] = useState([])
   const [loading, setLoading] = useState(true)
+  const refreshingRef = useRef(false)
 
   useEffect(() => {
     const storedUser = localStorage.getItem('barber_user')
@@ -18,15 +18,80 @@ export function AuthProvider({ children }) {
     setLoading(false)
   }, [])
 
+  const saveSession = (data) => {
+    const userData = {
+      email: data.email,
+      nome: data.nome,
+      role: data.role,
+      id: data.id,
+      telefone: data.telefone,
+      token: data.token
+    }
+    setUser(userData)
+    localStorage.setItem('barber_user', JSON.stringify(userData))
+    localStorage.setItem('barber_token', data.token)
+    if (data.refreshToken) {
+      localStorage.setItem('barber_refresh_token', data.refreshToken)
+    }
+  }
+
+  const tryRefresh = async () => {
+    if (refreshingRef.current) return null
+    const rt = localStorage.getItem('barber_refresh_token')
+    if (!rt) return null
+
+    refreshingRef.current = true
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt })
+      })
+      if (!res.ok) {
+        doLogout()
+        return null
+      }
+      const data = await res.json()
+      saveSession(data)
+      return data.token
+    } catch {
+      doLogout()
+      return null
+    } finally {
+      refreshingRef.current = false
+    }
+  }
+
+  // helper fetch com renovação automática de token
+  const apiFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('barber_token')
+    const headers = { 'Content-Type': 'application/json', ...options.headers }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    let res = await fetch(url, { ...options, headers })
+
+    if (res.status === 401) {
+      const newToken = await tryRefresh()
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`
+        res = await fetch(url, { ...options, headers })
+      }
+    }
+
+    return res
+  }
+
   const login = async (email, password) => {
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha: password }),
       })
+
+      if (response.status === 429) {
+        return { success: false, message: 'Muitas tentativas. Aguarde 1 minuto.' }
+      }
 
       if (!response.ok) {
         const error = await response.json()
@@ -34,21 +99,9 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json()
-      const userData = {
-        email: data.email,
-        nome: data.nome,
-        role: data.role,
-        id: data.id,
-        telefone: data.telefone,
-        token: data.token
-      }
-      
-      setUser(userData)
-      localStorage.setItem('barber_user', JSON.stringify(userData))
-      localStorage.setItem('barber_token', data.token)
-      
+      saveSession(data)
       return { success: true, role: data.role }
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Erro ao conectar com o servidor' }
     }
   }
@@ -57,9 +110,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch(`${API_URL}/auth/registro`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: dados.email,
           senha: dados.senha,
@@ -81,72 +132,58 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json()
-      const userData = {
-        email: data.email,
-        nome: data.nome,
-        role: data.role,
-        id: data.id,
-        telefone: data.telefone,
-        token: data.token
-      }
-      
-      setUser(userData)
-      localStorage.setItem('barber_user', JSON.stringify(userData))
-      localStorage.setItem('barber_token', data.token)
-      
+      saveSession(data)
       return { success: true }
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Erro ao conectar com o servidor' }
     }
   }
 
-  const logout = () => {
+  const doLogout = () => {
     setUser(null)
     localStorage.removeItem('barber_user')
     localStorage.removeItem('barber_token')
+    localStorage.removeItem('barber_refresh_token')
   }
 
-  const isAdmin = () => {
-    return user?.role === 'ADMIN'
+  const logout = async () => {
+    const rt = localStorage.getItem('barber_refresh_token')
+    if (rt) {
+      try {
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: rt })
+        })
+      } catch { /* silencia */ }
+    }
+    doLogout()
   }
 
-  const isFuncionario = () => {
-    return user?.role === 'FUNCIONARIO'
-  }
-
-  const isCliente = () => {
-    return user?.role === 'CLIENTE'
-  }
+  const isAdmin = () => user?.role === 'ADMIN'
+  const isFuncionario = () => user?.role === 'FUNCIONARIO'
+  const isCliente = () => user?.role === 'CLIENTE'
 
   const fetchFuncionarios = async () => {
     try {
-      const token = localStorage.getItem('barber_token')
-      const response = await fetch(`${API_URL}/usuarios/role/FUNCIONARIO`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setFuncionarios(data)
-      }
-    } catch (error) {
-      console.error('Erro ao buscar funcionários:', error)
-    }
+      const res = await apiFetch(`${API_URL}/usuarios/role/FUNCIONARIO`)
+      if (res.ok) setFuncionarios(await res.json())
+    } catch { /* ignore */ }
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
-      registrarCliente, 
-      logout, 
-      isAdmin, 
-      isFuncionario, 
-      isCliente, 
+    <AuthContext.Provider value={{
+      user,
+      login,
+      registrarCliente,
+      logout,
+      isAdmin,
+      isFuncionario,
+      isCliente,
       funcionarios,
       fetchFuncionarios,
-      loading 
+      apiFetch,
+      loading
     }}>
       {children}
     </AuthContext.Provider>
@@ -155,8 +192,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }

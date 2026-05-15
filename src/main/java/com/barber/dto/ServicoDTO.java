@@ -9,4 +9,6 @@ public class ServicoDTO {
     private Integer duracao;
     private Double preco;
     private boolean ativo;
+    private String descricao;
+    private String photoUrl;
 }

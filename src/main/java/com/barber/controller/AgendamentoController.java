@@ -1,7 +1,11 @@
 package com.barber.controller;
 
 import com.barber.dto.AgendamentoDTO;
+import com.barber.dto.StatsDTO;
 import com.barber.service.AgendamentoService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +26,19 @@ public class AgendamentoController {
     @GetMapping
     public ResponseEntity<List<AgendamentoDTO>> findAll() {
         return ResponseEntity.ok(agendamentoService.findAll());
+    }
+
+    @GetMapping("/paginated")
+    public ResponseEntity<Page<AgendamentoDTO>> findAllPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("data").descending().and(Sort.by("hora").descending()));
+        return ResponseEntity.ok(agendamentoService.findAll(pageable));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<StatsDTO> getStats(@RequestParam(defaultValue = "30") int diasAtras) {
+        return ResponseEntity.ok(agendamentoService.getStats(diasAtras));
     }
 
     @GetMapping("/cliente/{clienteId}")

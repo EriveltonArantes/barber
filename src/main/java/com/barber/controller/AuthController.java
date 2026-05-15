@@ -2,6 +2,7 @@ package com.barber.controller;
 
 import com.barber.dto.AuthResponse;
 import com.barber.dto.LoginRequest;
+import com.barber.dto.RefreshTokenRequest;
 import com.barber.dto.RegistroRequest;
 import com.barber.service.AuthService;
 import org.springframework.http.ResponseEntity;
@@ -25,5 +26,16 @@ public class AuthController {
     @PostMapping("/registro")
     public ResponseEntity<AuthResponse> registro(@RequestBody RegistroRequest request) {
         return ResponseEntity.ok(authService.registro(request));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
+        authService.logout(request.getRefreshToken());
+        return ResponseEntity.ok().build();
     }
 }

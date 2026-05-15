@@ -1,155 +1,44 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Button, Table, Badge, Form } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 
 function Dashboard() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, apiFetch } = useAuth()
   const [periodo, setPeriodo] = useState('30')
-  const [dados, setDados] = useState([])
+  const [stats, setStats] = useState(null)
+  const [recentes, setRecentes] = useState([])
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    const token = localStorage.getItem('barber_token')
-    fetch('/api/agendamentos', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setDados(data.map(ag => ({
-        id: ag.id,
-        data: ag.data,
-        hora: ag.hora ? ag.hora.substring(0, 5) : ag.hora,
-        cliente: ag.clienteNome,
-        servico: ag.servicoNome,
-        preco: ag.servicoPreco || 0,
-        funcionario: ag.funcionarioNome,
-        status: ag.status
-      }))))
-      .catch(() => {})
-  }, [])
-
-  // Filtrar dados por período
-  const dadosFiltrados = useMemo(() => {
-    const hoje = new Date()
-    const dataInicio = new Date(hoje)
-    dataInicio.setDate(hoje.getDate() - parseInt(periodo))
-    
-    return dados.filter(d => new Date(d.data) >= dataInicio)
-  }, [periodo, dados])
-
-  // Estatísticas gerais
-  const estatisticas = useMemo(() => {
-    const totalAgendamentos = dadosFiltrados.length
-    const faturamentoTotal = dadosFiltrados.reduce((acc, d) => acc + d.preco, 0)
-    const ticketMedio = totalAgendamentos > 0 ? faturamentoTotal / totalAgendamentos : 0
-    
-    // Agendamentos por dia
-    const porDia = {}
-    dadosFiltrados.forEach(d => {
-      porDia[d.data] = (porDia[d.data] || 0) + 1
-    })
-    const mediaDiaria = Object.keys(porDia).length > 0 
-      ? (totalAgendamentos / Object.keys(porDia).length).toFixed(1) 
-      : 0
-
-    // Cliente mais frequente
-    const clientesCount = {}
-    dadosFiltrados.forEach(d => {
-      clientesCount[d.cliente] = (clientesCount[d.cliente] || 0) + 1
-    })
-    const clienteTop = Object.entries(clientesCount).sort((a, b) => b[1] - a[1])[0]
-
-    // Serviço mais realizado
-    const servicosCount = {}
-    dadosFiltrados.forEach(d => {
-      servicosCount[d.servico] = (servicosCount[d.servico] || 0) + 1
-    })
-    const servicoTop = Object.entries(servicosCount).sort((a, b) => b[1] - a[1])[0]
-
-    // Funcionário que mais-atendeu
-    const funcCount = {}
-    dadosFiltrados.forEach(d => {
-      funcCount[d.funcionario] = (funcCount[d.funcionario] || 0) + 1
-    })
-    const funcTop = Object.entries(funcCount).sort((a, b) => b[1] - a[1])[0]
-
-    return {
-      totalAgendamentos,
-      faturamentoTotal,
-      ticketMedio,
-      mediaDiaria,
-      clienteTop: clienteTop || ['-', 0],
-      servicoTop: servicoTop || ['-', 0],
-      funcTop: funcTop || ['-', 0]
+  const carregarStats = async (dias) => {
+    setLoading(true)
+    try {
+      const [sRes, aRes] = await Promise.all([
+        apiFetch(`/api/agendamentos/stats?diasAtras=${dias}`),
+        apiFetch('/api/agendamentos/paginated?page=0&size=10')
+      ])
+      if (sRes.ok) setStats(await sRes.json())
+      if (aRes.ok) {
+        const page = await aRes.json()
+        setRecentes(page.content || [])
+      }
+    } catch { /* ignore */ } finally {
+      setLoading(false)
     }
-  }, [dadosFiltrados])
+  }
 
-  // Dados para gráfico de barras (faturamento por dia)
-  const dadosGraficoBarras = useMemo(() => {
-    const ultimos7Dias = []
-    const hoje = new Date()
-    
-    for (let i = 6; i >= 0; i--) {
-      const data = new Date(hoje)
-      data.setDate(hoje.getDate() - i)
-      const dataStr = data.toISOString().split('T')[0]
-      const diaSemana = data.toLocaleDateString('pt-BR', { weekday: 'short' })
-      
-      const agendamentosDia = dadosFiltrados.filter(d => d.data === dataStr)
-      const faturamentoDia = agendamentosDia.reduce((acc, d) => acc + d.preco, 0)
-      
-      ultimos7Dias.push({
-        dia: diaSemana,
-        valor: faturamentoDia,
-        quantidade: agendamentosDia.length
-      })
-    }
-    
-    return ultimos7Dias
-  }, [dadosFiltrados])
+  useEffect(() => { carregarStats(periodo) }, [periodo])
 
-  // Dados para gráfico de pizza (serviços)
-  const dadosGraficoPizza = useMemo(() => {
-    const servicosCount = {}
-    dadosFiltrados.forEach(d => {
-      servicosCount[d.servico] = (servicosCount[d.servico] || 0) + 1
-    })
-    
-    const cores = ['#c9a227', '#28a745', '#dc3545', '#17a2b8', '#ffc107']
-    return Object.entries(servicosCount).map(([nome, valor], i) => ({
-      nome,
-      valor,
-      cor: cores[i % cores.length]
-    }))
-  }, [dadosFiltrados])
+  const maxFaturamento = stats?.faturamentoPorDia?.length
+    ? Math.max(...stats.faturamentoPorDia.map(d => d.faturamento), 1)
+    : 1
 
-  // Dados para gráfico de pizza (funcionários)
-  const dadosGraficoFunc = useMemo(() => {
-    const funcCount = {}
-    dadosFiltrados.forEach(d => {
-      funcCount[d.funcionario] = (funcCount[d.funcionario] || 0) + 1
-    })
-    
-    const cores = ['#c9a227', '#28a745', '#dc3545', '#17a2b8']
-    return Object.entries(funcCount).map(([nome, valor], i) => ({
-      nome,
-      valor,
-      cor: cores[i % cores.length]
-    }))
-  }, [dadosFiltrados])
-
-  // Calcular porcentagem para gráficos pizza
-  const totalPizza = dadosGraficoPizza.reduce((acc, d) => acc + d.valor, 0)
+  const totalPorServico = stats?.porServico?.reduce((s, i) => s + i.quantidade, 0) || 0
 
   if (!isAdmin()) {
     return (
       <div style={{ paddingTop: '100px', minHeight: '100vh', backgroundColor: '#1a1a1a' }}>
         <Container>
-          <Card style={{ 
-            background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-            border: '1px solid #dc3545',
-            borderRadius: '8px',
-            padding: '2rem',
-            textAlign: 'center'
-          }}>
+          <Card style={{ background: 'linear-gradient(145deg, #333333, #2a2a2a)', border: '1px solid #dc3545', borderRadius: '8px', padding: '2rem', textAlign: 'center' }}>
             <h2 style={{ color: '#dc3545' }}>Acesso Restrito</h2>
             <p style={{ color: '#a0a0a0' }}>Esta área é apenas para administradores.</p>
           </Card>
@@ -158,363 +47,174 @@ function Dashboard() {
     )
   }
 
+  const cardStyle = { background: 'linear-gradient(145deg, #333333, #2a2a2a)', border: '1px solid #c9a227', borderRadius: '12px' }
+
   return (
     <div style={{ paddingTop: '100px', minHeight: '100vh', backgroundColor: '#1a1a1a', paddingBottom: '50px' }}>
       <Container>
         {/* Header */}
-        <Row className="mb-4">
+        <Row className="mb-4 align-items-center">
           <Col>
-            <h2 style={{ color: '#c9a227', fontFamily: "'Playfair Display', serif" }}>
-              <i className="fas fa-chart-line me-2"></i>
-              Dashboard Administrativo
-            </h2>
-            <p style={{ color: '#a0a0a0' }}>
-              Visão geral do seu negócio - {user?.nome}
-            </p>
+            <h2 style={{ color: '#c9a227', fontFamily: "'Playfair Display', serif" }}>Dashboard Administrativo</h2>
+            <p style={{ color: '#a0a0a0' }}>Visão geral do negócio — {user?.nome}</p>
           </Col>
           <Col xs="auto">
-            <Form.Select 
-              value={periodo} 
-              onChange={(e) => setPeriodo(e.target.value)}
-              style={{ 
-                backgroundColor: '#2d2d2d', 
-                border: '1px solid #444', 
-                color: '#f5f5f5',
-                width: '200px'
-              }}
+            <Form.Select
+              value={periodo}
+              onChange={e => setPeriodo(e.target.value)}
+              style={{ backgroundColor: '#2d2d2d', border: '1px solid #444', color: '#f5f5f5', width: '200px' }}
             >
               <option value="7">Últimos 7 dias</option>
               <option value="15">Últimos 15 dias</option>
               <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
             </Form.Select>
           </Col>
         </Row>
 
-        {/* Cards de Estatísticas */}
-        <Row className="mb-4">
-          <Col md={3}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ color: '#a0a0a0', marginBottom: '0.2rem', fontSize: '0.85rem' }}>FATURAMENTO TOTAL</p>
-                    <h2 style={{ color: '#28a745', marginBottom: 0 }}>R$ {estatisticas.faturamentoTotal.toLocaleString('pt-BR')}</h2>
-                  </div>
-                  <div style={{ fontSize: '2.5rem', color: '#c9a227' }}>💰</div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ color: '#a0a0a0', marginBottom: '0.2rem', fontSize: '0.85rem' }}>AGENDAMENTOS</p>
-                    <h2 style={{ color: '#f5f5f5', marginBottom: 0 }}>{estatisticas.totalAgendamentos}</h2>
-                  </div>
-                  <div style={{ fontSize: '2.5rem', color: '#c9a227' }}>📅</div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ color: '#a0a0a0', marginBottom: '0.2rem', fontSize: '0.85rem' }}>TICKET MÉDIO</p>
-                    <h2 style={{ color: '#17a2b8', marginBottom: 0 }}>R$ {estatisticas.ticketMedio.toFixed(2)}</h2>
-                  </div>
-                  <div style={{ fontSize: '2.5rem', color: '#c9a227' }}>📊</div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col md={3}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <p style={{ color: '#a0a0a0', marginBottom: '0.2rem', fontSize: '0.85rem' }}>MÉDIA/DIA</p>
-                    <h2 style={{ color: '#ffc107', marginBottom: 0 }}>{estatisticas.mediaDiaria}</h2>
-                  </div>
-                  <div style={{ fontSize: '2.5rem', color: '#c9a227' }}>📈</div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+        {loading && <p style={{ color: '#a0a0a0', textAlign: 'center' }}>Carregando…</p>}
 
-        {/* Gráficos */}
-        <Row className="mb-4">
-          {/* Gráfico de Barras */}
-          <Col lg={8}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <h5 style={{ color: '#c9a227', marginBottom: '1.5rem' }}>
-                  <i className="fas fa-chart-bar me-2"></i>
-                  Faturamento dos Últimos 7 Dias
-                </h5>
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '200px', padding: '0 1rem' }}>
-                  {dadosGraficoBarras.map((d, i) => {
-                    const maxValor = Math.max(...dadosGraficoBarras.map(d => d.valor))
-                    const altura = maxValor > 0 ? (d.valor / maxValor) * 150 : 0
-                    return (
-                      <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                        <div style={{ 
-                          width: '40px', 
-                          height: `${altura}px`, 
-                          backgroundColor: '#c9a227',
-                          borderRadius: '4px 4px 0 0',
-                          marginBottom: '0.5rem',
-                          transition: 'height 0.3s ease'
-                        }}></div>
-                        <span style={{ color: '#a0a0a0', fontSize: '0.75rem' }}>{d.dia}</span>
-                        <span style={{ color: '#28a745', fontSize: '0.7rem', fontWeight: 'bold' }}>R$ {d.valor}</span>
+        {/* Cards KPI */}
+        {stats && (
+          <>
+            <Row className="mb-4 g-3">
+              {[
+                { label: 'FATURAMENTO TOTAL', value: `R$ ${stats.faturamentoTotal?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, color: '#28a745', icon: '💰' },
+                { label: 'AGENDAMENTOS', value: stats.totalAgendamentos, color: '#f5f5f5', icon: '📅' },
+                { label: 'TICKET MÉDIO', value: `R$ ${stats.ticketMedio?.toFixed(2)}`, color: '#17a2b8', icon: '📊' },
+                { label: 'MÉDIA/DIA', value: stats.mediaDiaria?.toFixed(1), color: '#ffc107', icon: '📈' }
+              ].map(({ label, value, color, icon }) => (
+                <Col md={3} key={label}>
+                  <Card style={cardStyle}>
+                    <Card.Body style={{ padding: '1.5rem' }}>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div>
+                          <p style={{ color: '#a0a0a0', marginBottom: '0.2rem', fontSize: '0.8rem' }}>{label}</p>
+                          <h3 style={{ color, marginBottom: 0 }}>{value}</h3>
+                        </div>
+                        <div style={{ fontSize: '2.2rem' }}>{icon}</div>
                       </div>
-                    )
-                  })}
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
 
-          {/* Cards de Records */}
-          <Col lg={4}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <h5 style={{ color: '#c9a227', marginBottom: '1rem' }}>
-                  <i className="fas fa-trophy me-2"></i>
-                  Records do Período
-                </h5>
-                
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>👤</span>
-                    <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>Melhor Cliente</span>
-                  </div>
-                  <div style={{ 
-                    backgroundColor: '#2d2d2d', 
-                    padding: '0.75rem', 
-                    borderRadius: '8px',
-                    border: '1px solid #444'
-                  }}>
-                    <span style={{ color: '#f5f5f5', fontWeight: 'bold' }}>{estatisticas.clienteTop[0]}</span>
-                    <span style={{ color: '#c9a227', marginLeft: '0.5rem' }}>({estatisticas.clienteTop[1]}x)</span>
-                  </div>
-                </div>
+            {/* Gráfico de barras (faturamento por dia) */}
+            <Row className="mb-4">
+              <Col lg={8}>
+                <Card style={cardStyle}>
+                  <Card.Body style={{ padding: '1.5rem' }}>
+                    <h5 style={{ color: '#c9a227', marginBottom: '1.5rem' }}>Faturamento por Dia</h5>
+                    {stats.faturamentoPorDia?.length > 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '180px', padding: '0 0.5rem' }}>
+                        {stats.faturamentoPorDia.map((d, i) => {
+                          const altura = (d.faturamento / maxFaturamento) * 150
+                          const data = new Date(d.data + 'T00:00:00')
+                          return (
+                            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 0 }}>
+                              <span style={{ color: '#28a745', fontSize: '0.65rem', marginBottom: '3px' }}>R${d.faturamento?.toFixed(0)}</span>
+                              <div title={`${d.data}: R$${d.faturamento?.toFixed(2)} (${d.quantidade} ag.)`} style={{ width: '80%', maxWidth: '36px', height: `${altura || 4}px`, backgroundColor: '#c9a227', borderRadius: '3px 3px 0 0', transition: 'height 0.3s' }} />
+                              <span style={{ color: '#a0a0a0', fontSize: '0.65rem', marginTop: '4px' }}>{data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p style={{ color: '#a0a0a0', textAlign: 'center', padding: '2rem' }}>Sem dados no período</p>
+                    )}
+                  </Card.Body>
+                </Card>
+              </Col>
 
-                <div style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>✂️</span>
-                    <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>Serviço Mais Pedido</span>
-                  </div>
-                  <div style={{ 
-                    backgroundColor: '#2d2d2d', 
-                    padding: '0.75rem', 
-                    borderRadius: '8px',
-                    border: '1px solid #444'
-                  }}>
-                    <span style={{ color: '#f5f5f5', fontWeight: 'bold' }}>{estatisticas.servicoTop[0]}</span>
-                    <span style={{ color: '#c9a227', marginLeft: '0.5rem' }}>({estatisticas.servicoTop[1]}x)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '1.2rem', marginRight: '0.5rem' }}>🏆</span>
-                    <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>Melhor Profissional</span>
-                  </div>
-                  <div style={{ 
-                    backgroundColor: '#2d2d2d', 
-                    padding: '0.75rem', 
-                    borderRadius: '8px',
-                    border: '1px solid #444'
-                  }}>
-                    <span style={{ color: '#f5f5f5', fontWeight: 'bold' }}>{estatisticas.funcTop[0]}</span>
-                    <span style={{ color: '#c9a227', marginLeft: '0.5rem' }}>({estatisticas.funcTop[1]} atendimentos)</span>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Gráficos de Pizza */}
-        <Row className="mb-4">
-          <Col lg={6}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <h5 style={{ color: '#c9a227', marginBottom: '1.5rem' }}>
-                  <i className="fas fa-chart-pie me-2"></i>
-                  Distribuição por Serviço
-                </h5>
-                <Row>
-                  <Col md={6}>
-                    {/* Gráfico Pizza Visual */}
-                    <div style={{ 
-                      width: '180px', 
-                      height: '180px', 
-                      borderRadius: '50%', 
-                      background: `conic-gradient(${dadosGraficoPizza.map((d, i) => `${d.cor} ${dadosGraficoPizza.slice(0, i).reduce((a, b) => a + (b.valor/totalPizza)*100, 0)}% ${dadosGraficoPizza.slice(0, i+1).reduce((a, b) => a + (b.valor/totalPizza)*100, 0)}%`).join(', ')})`,
-                      margin: '0 auto',
-                      position: 'relative'
-                    }}>
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '50%', 
-                        left: '50%', 
-                        transform: 'translate(-50%, -50%)',
-                        width: '80px', 
-                        height: '80px', 
-                        backgroundColor: '#2a2a2a', 
-                        borderRadius: '50%'
-                      }}></div>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    {dadosGraficoPizza.map((d, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <div style={{ 
-                          width: '12px', 
-                          height: '12px', 
-                          backgroundColor: d.cor, 
-                          borderRadius: '2px',
-                          marginRight: '0.5rem'
-                        }}></div>
-                        <span style={{ color: '#f5f5f5', flex: 1, fontSize: '0.85rem' }}>{d.nome}</span>
-                        <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>{((d.valor / totalPizza) * 100).toFixed(1)}%</span>
+              {/* Records */}
+              <Col lg={4}>
+                <Card style={cardStyle}>
+                  <Card.Body style={{ padding: '1.5rem' }}>
+                    <h5 style={{ color: '#c9a227', marginBottom: '1.2rem' }}>Records do Período</h5>
+                    {[
+                      { icon: '👤', label: 'Melhor Cliente', valor: stats.clienteTop },
+                      { icon: '✂️', label: 'Serviço Top', valor: stats.servicoTop },
+                      { icon: '🏆', label: 'Melhor Profissional', valor: stats.funcionarioTop }
+                    ].map(({ icon, label, valor }) => (
+                      <div key={label} className="mb-3">
+                        <div style={{ color: '#a0a0a0', fontSize: '0.8rem', marginBottom: '0.3rem' }}>{icon} {label}</div>
+                        <div style={{ backgroundColor: '#2d2d2d', padding: '0.6rem 0.8rem', borderRadius: '6px', border: '1px solid #444', color: valor ? '#f5f5f5' : '#555', fontWeight: '500' }}>
+                          {valor || 'Sem dados'}
+                        </div>
                       </div>
                     ))}
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-          </Col>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
 
-          <Col lg={6}>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
-              <Card.Body style={{ padding: '1.5rem' }}>
-                <h5 style={{ color: '#c9a227', marginBottom: '1.5rem' }}>
-                  <i className="fas fa-users me-2"></i>
-                  Performance por Funcionário
-                </h5>
-                <Row>
-                  <Col md={6}>
-                    {/* Gráfico Pizza Visual */}
-                    <div style={{ 
-                      width: '180px', 
-                      height: '180px', 
-                      borderRadius: '50%', 
-                      background: `conic-gradient(${dadosGraficoFunc.map((d, i) => `${d.cor} ${dadosGraficoFunc.slice(0, i).reduce((a, b) => a + (b.valor/totalPizza)*100, 0)}% ${dadosGraficoFunc.slice(0, i+1).reduce((a, b) => a + (b.valor/totalPizza)*100, 0)}%`).join(', ')})`,
-                      margin: '0 auto',
-                      position: 'relative'
-                    }}>
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: '50%', 
-                        left: '50%', 
-                        transform: 'translate(-50%, -50%)',
-                        width: '80px', 
-                        height: '80px', 
-                        backgroundColor: '#2a2a2a', 
-                        borderRadius: '50%'
-                      }}></div>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    {dadosGraficoFunc.map((d, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <div style={{ 
-                          width: '12px', 
-                          height: '12px', 
-                          backgroundColor: d.cor, 
-                          borderRadius: '2px',
-                          marginRight: '0.5rem'
-                        }}></div>
-                        <span style={{ color: '#f5f5f5', flex: 1, fontSize: '0.85rem' }}>{d.nome}</span>
-                        <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>{d.valor} att.</span>
-                      </div>
-                    ))}
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+            {/* Distribuição por Serviço e Funcionário */}
+            <Row className="mb-4">
+              {[
+                { titulo: 'Distribuição por Serviço', dados: stats.porServico, total: totalPorServico },
+                { titulo: 'Performance por Profissional', dados: stats.porFuncionario, total: stats.porFuncionario?.reduce((s, i) => s + i.quantidade, 0) || 0 }
+              ].map(({ titulo, dados, total }) => (
+                <Col lg={6} key={titulo}>
+                  <Card style={cardStyle}>
+                    <Card.Body style={{ padding: '1.5rem' }}>
+                      <h5 style={{ color: '#c9a227', marginBottom: '1.2rem' }}>{titulo}</h5>
+                      {dados?.length > 0 ? dados.map((item, i) => {
+                        const cores = ['#c9a227', '#28a745', '#17a2b8', '#dc3545', '#ffc107']
+                        const pct = total > 0 ? ((item.quantidade / total) * 100).toFixed(1) : 0
+                        return (
+                          <div key={i} className="mb-3">
+                            <div className="d-flex justify-content-between mb-1">
+                              <span style={{ color: '#f5f5f5', fontSize: '0.9rem' }}>{item.nome}</span>
+                              <span style={{ color: '#a0a0a0', fontSize: '0.85rem' }}>{item.quantidade}x · R${item.faturamento?.toFixed(0)}</span>
+                            </div>
+                            <div style={{ backgroundColor: '#2d2d2d', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', backgroundColor: cores[i % cores.length], borderRadius: '4px', transition: 'width 0.5s' }} />
+                            </div>
+                            <div style={{ color: '#a0a0a0', fontSize: '0.75rem', textAlign: 'right' }}>{pct}%</div>
+                          </div>
+                        )
+                      }) : (
+                        <p style={{ color: '#555', textAlign: 'center', padding: '1rem' }}>Sem dados no período</p>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </>
+        )}
 
-        {/* Tabela de Recentess */}
+        {/* Tabela de Recentes */}
         <Row>
           <Col>
-            <Card style={{ 
-              background: 'linear-gradient(145deg, #333333, #2a2a2a)', 
-              border: '1px solid #c9a227',
-              borderRadius: '12px'
-            }}>
+            <Card style={cardStyle}>
               <Card.Body style={{ padding: '1.5rem' }}>
-                <h5 style={{ color: '#c9a227', marginBottom: '1rem' }}>
-                  <i className="fas fa-history me-2"></i>
-                  Recentes (Últimos 10)
-                </h5>
+                <h5 style={{ color: '#c9a227', marginBottom: '1rem' }}>Agendamentos Recentes</h5>
                 <Table responsive style={{ color: '#f5f5f5' }}>
                   <thead style={{ backgroundColor: '#2d2d2d', color: '#c9a227' }}>
                     <tr>
-                      <th>Data</th>
-                      <th>Hora</th>
-                      <th>Cliente</th>
-                      <th>Serviço</th>
-                      <th>Profissional</th>
-                      <th>Valor</th>
-                      <th>Status</th>
+                      <th>Data</th><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Valor</th><th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dadosFiltrados.slice(0, 10).map(ag => (
+                    {recentes.length > 0 ? recentes.map(ag => (
                       <tr key={ag.id} style={{ borderBottom: '1px solid #444' }}>
-                        <td>{new Date(ag.data).toLocaleDateString('pt-BR')}</td>
-                        <td style={{ color: '#c9a227', fontWeight: 'bold' }}>{ag.hora}</td>
-                        <td>{ag.cliente}</td>
-                        <td>{ag.servico}</td>
-                        <td>{ag.funcionario}</td>
-                        <td style={{ color: '#28a745', fontWeight: 'bold' }}>R$ {ag.preco}</td>
+                        <td>{new Date(ag.data + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+                        <td style={{ color: '#c9a227', fontWeight: 'bold' }}>{ag.hora?.substring(0, 5)}</td>
+                        <td>{ag.clienteNome}</td>
+                        <td>{ag.servicoNome}</td>
+                        <td>{ag.funcionarioNome}</td>
+                        <td style={{ color: '#28a745', fontWeight: 'bold' }}>R$ {ag.servicoPreco?.toFixed(2)}</td>
                         <td>
-                          <Badge bg="success">{ag.status}</Badge>
+                          <Badge bg={ag.status === 'CONFIRMADO' ? 'success' : ag.status === 'CANCELADO' ? 'danger' : ag.status === 'CONCLUIDO' ? 'primary' : 'warning'}>
+                            {ag.status}
+                          </Badge>
                         </td>
                       </tr>
-                    ))}
+                    )) : (
+                      <tr><td colSpan="7" style={{ color: '#a0a0a0', textAlign: 'center', padding: '2rem' }}>Nenhum agendamento encontrado.</td></tr>
+                    )}
                   </tbody>
                 </Table>
               </Card.Body>

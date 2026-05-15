@@ -35,6 +35,9 @@ class AgendamentoServiceTest {
     @Mock
     private ServicoRepository servicoRepository;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private AgendamentoService agendamentoService;
 
@@ -156,6 +159,7 @@ class AgendamentoServiceTest {
 
     @Test
     void delete_Success() {
+        when(agendamentoRepository.findById(1L)).thenReturn(Optional.of(agendamento));
         doNothing().when(agendamentoRepository).deleteById(1L);
 
         agendamentoService.delete(1L);

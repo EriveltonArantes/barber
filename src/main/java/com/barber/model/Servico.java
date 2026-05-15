@@ -26,4 +26,8 @@ public class Servico {
     private Double preco;
     
     private boolean ativo = true;
+
+    private String descricao;
+
+    private String photoUrl;
 }

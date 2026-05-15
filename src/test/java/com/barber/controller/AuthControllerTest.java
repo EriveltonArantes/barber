@@ -48,7 +48,7 @@ class AuthControllerTest {
         registroRequest.setNome("Test User");
         registroRequest.setRole("CLIENTE");
 
-        authResponse = new AuthResponse("token123", "test@email.com", "Test User", "CLIENTE", 1L, "(11) 99999-9999");
+        authResponse = new AuthResponse("token123", "refresh123", "test@email.com", "Test User", "CLIENTE", 1L, "(11) 99999-9999");
     }
 
     @Test
