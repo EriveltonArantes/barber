@@ -38,6 +38,9 @@ public class Agendamento {
     
     @Column(nullable = false)
     private String status; // PENDENTE, CONFIRMADO, CANCELADO, CONCLUIDO
-    
+
     private String observacoes;
+
+    @Column(nullable = false)
+    private boolean reminderSent = false;
 }

@@ -44,6 +44,13 @@ public interface AgendamentoRepository extends JpaRepository<Agendamento, Long> 
            "GROUP BY a.cliente.nome ORDER BY COUNT(a) DESC")
     List<Object[]> countByCliente(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 
+    @Query("SELECT a FROM Agendamento a WHERE a.data = :data " +
+           "AND a.hora BETWEEN :horaMin AND :horaMax " +
+           "AND a.reminderSent = false AND a.status <> 'CANCELADO'")
+    List<Agendamento> findReminderCandidates(@Param("data") LocalDate data,
+                                             @Param("horaMin") LocalTime horaMin,
+                                             @Param("horaMax") LocalTime horaMax);
+
     @Query("SELECT a.data, COUNT(a), SUM(a.servico.preco) FROM Agendamento a " +
            "WHERE a.data BETWEEN :inicio AND :fim AND a.status <> 'CANCELADO' " +
            "GROUP BY a.data ORDER BY a.data ASC")

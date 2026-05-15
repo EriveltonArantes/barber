@@ -24,15 +24,18 @@ public class AgendamentoService {
     private final UsuarioRepository usuarioRepository;
     private final ServicoRepository servicoRepository;
     private final EmailService emailService;
+    private final WhatsAppService whatsAppService;
 
     public AgendamentoService(AgendamentoRepository agendamentoRepository,
                               UsuarioRepository usuarioRepository,
                               ServicoRepository servicoRepository,
-                              EmailService emailService) {
+                              EmailService emailService,
+                              WhatsAppService whatsAppService) {
         this.agendamentoRepository = agendamentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.servicoRepository = servicoRepository;
         this.emailService = emailService;
+        this.whatsAppService = whatsAppService;
     }
 
     public List<AgendamentoDTO> findAll() {
@@ -105,6 +108,9 @@ public class AgendamentoService {
             emailService.sendAgendamentoConfirmacao(
                 cliente.getEmail(), cliente.getNome(), servico.getNome(),
                 funcionario.getNome(), agendamento.getData(), agendamento.getHora());
+            whatsAppService.sendConfirmacao(
+                cliente.getTelefone(), cliente.getNome(), servico.getNome(),
+                funcionario.getNome(), agendamento.getData(), agendamento.getHora());
         }
 
         return toDTO(agendamento);
@@ -116,6 +122,9 @@ public class AgendamentoService {
 
         emailService.sendAgendamentoCancelamento(
             ag.getCliente().getEmail(), ag.getCliente().getNome(),
+            ag.getServico().getNome(), ag.getData(), ag.getHora());
+        whatsAppService.sendCancelamento(
+            ag.getCliente().getTelefone(), ag.getCliente().getNome(),
             ag.getServico().getNome(), ag.getData(), ag.getHora());
 
         agendamentoRepository.deleteById(id);

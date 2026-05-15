@@ -38,6 +38,9 @@ class AgendamentoServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private WhatsAppService whatsAppService;
+
     @InjectMocks
     private AgendamentoService agendamentoService;
 
