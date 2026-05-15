@@ -35,7 +35,7 @@ public class DataInitializer implements CommandLineRunner {
             usuarioRepository.save(admin);
         }
 
-        // Criar funcionários padrão se não existirem
+        // Barbeiros padrão
         if (usuarioRepository.findByRole("FUNCIONARIO").isEmpty()) {
             Usuario func1 = new Usuario();
             func1.setEmail("marcos@barber.com");
@@ -43,6 +43,7 @@ public class DataInitializer implements CommandLineRunner {
             func1.setNome("Marcos Souza");
             func1.setRole("FUNCIONARIO");
             func1.setTelefone("(11) 99999-1001");
+            func1.setComissaoPercentual(30.0);
             usuarioRepository.save(func1);
 
             Usuario func2 = new Usuario();
@@ -51,7 +52,19 @@ public class DataInitializer implements CommandLineRunner {
             func2.setNome("Ricardo Alves");
             func2.setRole("FUNCIONARIO");
             func2.setTelefone("(11) 99999-1002");
+            func2.setComissaoPercentual(30.0);
             usuarioRepository.save(func2);
+        }
+
+        // Recepcionista padrão
+        if (usuarioRepository.findByRole("RECEPCIONISTA").isEmpty()) {
+            Usuario recepcao = new Usuario();
+            recepcao.setEmail("recepcao@barber.com");
+            recepcao.setSenha(passwordEncoder.encode("123456"));
+            recepcao.setNome("Ana Recepção");
+            recepcao.setRole("RECEPCIONISTA");
+            recepcao.setTelefone("(11) 99999-2000");
+            usuarioRepository.save(recepcao);
         }
 
         // Criar serviços padrão se não existirem

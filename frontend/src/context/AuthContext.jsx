@@ -162,6 +162,7 @@ export function AuthProvider({ children }) {
 
   const isAdmin = () => user?.role === 'ADMIN'
   const isFuncionario = () => user?.role === 'FUNCIONARIO'
+  const isRecepcionista = () => user?.role === 'RECEPCIONISTA'
   const isCliente = () => user?.role === 'CLIENTE'
 
   const fetchFuncionarios = async () => {
@@ -179,6 +180,7 @@ export function AuthProvider({ children }) {
       logout,
       isAdmin,
       isFuncionario,
+      isRecepcionista,
       isCliente,
       funcionarios,
       fetchFuncionarios,

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 
 function Navbar() {
   const [expanded, setExpanded] = useState(false)
-  const { user, isAdmin, isFuncionario, logout } = useAuth()
+  const { user, isAdmin, isFuncionario, isRecepcionista, logout } = useAuth()
   const navigate = useNavigate()
 
   const close = () => setExpanded(false)
@@ -38,6 +38,13 @@ function Navbar() {
               <>
                 <Nav.Link as={Link} to="/" onClick={close}>Início</Nav.Link>
                 <Nav.Link as={Link} to="/meus-agendamentos" onClick={close}>Minha Agenda</Nav.Link>
+              </>
+            ) : isRecepcionista() ? (
+              <>
+                <Nav.Link as={Link} to="/" onClick={close}>Início</Nav.Link>
+                <Nav.Link as={Link} to="/balcao" onClick={close}>Balcão</Nav.Link>
+                <Nav.Link as={Link} to="/meus-agendamentos" onClick={close}>Agendamentos</Nav.Link>
+                <Nav.Link as={Link} to="/cliente" onClick={close}>Clientes</Nav.Link>
               </>
             ) : (
               <>

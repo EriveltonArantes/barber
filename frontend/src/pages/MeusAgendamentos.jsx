@@ -3,7 +3,7 @@ import { Container, Row, Col, Card, Alert, Badge, Button, Modal, Form, InputGrou
 import { useAuth } from '../context/AuthContext'
 
 function MeusAgendamentos() {
-  const { user, isFuncionario, isAdmin } = useAuth()
+  const { user, isFuncionario, isAdmin, isRecepcionista } = useAuth()
   const [dataSelecionada, setDataSelecionada] = useState(new Date().toISOString().split('T')[0])
   const [agendamentos, setAgendamentos] = useState([])
   const [mesAtual, setMesAtual] = useState(new Date())
@@ -16,7 +16,7 @@ function MeusAgendamentos() {
     if (!token || !user) return
 
     let url = '/api/agendamentos'
-    if (!isAdmin()) {
+    if (!isAdmin() && !isRecepcionista()) {
       url = isFuncionario()
         ? `/api/agendamentos/funcionario/${user.id}`
         : `/api/agendamentos/cliente/${user.id}`
@@ -127,16 +127,16 @@ function MeusAgendamentos() {
         <Row className="mb-4">
           <Col>
             <h2 style={{ color: '#c9a227', fontFamily: "'Playfair Display', serif" }}>
-              📅 {isAdmin() ? 'Todos os Agendamentos' : isFuncionario() ? 'Minha Agenda' : 'Meus Agendamentos'} — {user?.nome}
+              📅 {isAdmin() || isRecepcionista() ? 'Todos os Agendamentos' : isFuncionario() ? 'Minha Agenda' : 'Meus Agendamentos'} — {user?.nome}
             </h2>
             <p style={{ color: '#a0a0a0' }}>
-              {isAdmin() ? 'Visão geral de todos os agendamentos da barbearia' : 'Gerencie sua agenda e visualize seus atendimentos'}
+              {isAdmin() || isRecepcionista() ? 'Visão geral de todos os agendamentos da barbearia' : 'Gerencie sua agenda e visualize seus atendimentos'}
             </p>
           </Col>
         </Row>
 
-        {/* Busca admin */}
-        {isAdmin() && (
+        {/* Busca admin / recepcionista */}
+        {(isAdmin() || isRecepcionista()) && (
           <Row className="mb-4">
             <Col>
               <Card style={{ background: '#1e1e1e', border: '1px solid #444', borderRadius: '10px' }}>
@@ -333,7 +333,7 @@ function MeusAgendamentos() {
                               </div>
                               <div className="d-flex align-items-center gap-2">
                                 <Badge bg={bg}>{label}</Badge>
-                                {isAdmin() ? (
+                                {isAdmin() || isRecepcionista() ? (
                                   <Button size="sm" variant="outline-danger" style={{ padding: '1px 8px', fontSize: '0.75rem', lineHeight: '1.5' }}
                                     onClick={() => cancelarAgendamento(ag.id)}>Excluir</Button>
                                 ) : ag.status !== 'CANCELADO' && ag.status !== 'CONCLUIDO' && (
