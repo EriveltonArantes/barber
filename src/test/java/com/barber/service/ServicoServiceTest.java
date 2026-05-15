@@ -88,6 +88,7 @@ class ServicoServiceTest {
 
     @Test
     void save_Success() {
+        when(servicoRepository.findById(1L)).thenReturn(Optional.of(servico));
         when(servicoRepository.save(any(Servico.class))).thenReturn(servico);
 
         ServicoDTO result = servicoService.save(servicoDTO);

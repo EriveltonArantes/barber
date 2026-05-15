@@ -133,6 +133,7 @@ class AgendamentoServiceTest {
 
     @Test
     void save_Success() {
+        agendamentoDTO.setId(null);
         when(agendamentoRepository.existsByFuncionarioIdAndDataAndHora(any(), any(), any())).thenReturn(false);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(cliente));
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(funcionario));
@@ -147,6 +148,7 @@ class AgendamentoServiceTest {
 
     @Test
     void save_Failure_HorarioOcupado() {
+        agendamentoDTO.setId(null);
         when(agendamentoRepository.existsByFuncionarioIdAndDataAndHora(any(), any(), any())).thenReturn(true);
 
         assertThrows(RuntimeException.class, () -> agendamentoService.save(agendamentoDTO));
